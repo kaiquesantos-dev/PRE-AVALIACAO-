@@ -10,11 +10,11 @@ async function main() {
   const prisma = new PrismaClient({ adapter });
 
   const adminPassword = await bcrypt.hash('admin123', 10);
-  const userPassword = await bcrypt.hash('user123', 10);
+  const userPassword = await bcrypt.hash('user1234', 10);
 
   await prisma.user.upsert({
     where: { email: 'admin@coworking.com' },
-    update: {},
+    update: { password: adminPassword, role: Role.ADMIN },
     create: {
       name: 'Admin',
       email: 'admin@coworking.com',
@@ -25,7 +25,7 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'user@coworking.com' },
-    update: {},
+    update: { password: userPassword, role: Role.USER },
     create: {
       name: 'Usuario Teste',
       email: 'user@coworking.com',
@@ -35,7 +35,7 @@ async function main() {
   });
 
   console.log(
-    'Seed concluído: admin@coworking.com / admin123, user@coworking.com / user123',
+    'Seed concluído: admin@coworking.com / admin123, user@coworking.com / user1234',
   );
   await prisma.$disconnect();
 }
