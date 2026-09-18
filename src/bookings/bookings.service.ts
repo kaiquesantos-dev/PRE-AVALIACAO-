@@ -56,7 +56,9 @@ export class BookingsService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2034'
       ) {
-        throw new ConflictException('Já existe uma reserva ativa nesse período');
+        throw new ConflictException(
+          'Já existe uma reserva ativa nesse período',
+        );
       }
       throw error;
     }
