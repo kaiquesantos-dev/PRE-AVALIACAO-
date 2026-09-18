@@ -1,118 +1,81 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Coworking API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST em NestJS para gestão de coworking: usuários, workspaces e reservas, com prevenção de sobreposição de horários.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+NestJS 10 · Prisma 7.10.0 (`@prisma/adapter-pg`) · PostgreSQL · JWT (`@nestjs/jwt` + `@nestjs/passport`) · `class-validator`
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
+## Setup
 
 ```bash
-$ npm install
+npm install
+cp .env.example .env   # ajuste DATABASE_URL, JWT_SECRET e API_KEY se necessário
+npx prisma migrate dev
+npx prisma db seed
+npm run start:dev
 ```
 
-## Compile and run the project
+Documentação interativa (Swagger): `http://localhost:3000/api`
+
+**Toda requisição exige o header `x-api-key`** (valor definido em `API_KEY` no `.env`), além do login/JWT nas rotas que já pedem autenticação. No Swagger, clique em **Authorize** e preencha os dois campos: `apiKey` (a chave) e `bearer` (o token retornado por `POST /auth/login`, sem o prefixo "Bearer").
+
+## Usuários de teste (via seed)
+
+| Email | Senha | Papel |
+|---|---|---|
+| admin@coworking.com | admin123 | ADMIN |
+| user@coworking.com | user1234 | USER |
+
+## Endpoints
+
+| Método | Rota | Acesso |
+|---|---|---|
+| POST | /auth/login | Público |
+| GET | /workspaces | Público |
+| POST | /workspaces | ADMIN |
+| PATCH | /workspaces/:id | ADMIN |
+| DELETE | /workspaces/:id | ADMIN |
+| POST | /bookings | USER |
+| GET | /bookings/my | USER |
+| GET | /bookings/:id | USER (dono) |
+| PATCH | /bookings/:id/cancel | USER (dono) |
+| POST | /users | ADMIN |
+| GET | /users | ADMIN |
+| GET | /users/:id | ADMIN |
+| DELETE | /users/:id | ADMIN |
+| PATCH | /users/:id/password | ADMIN |
+
+## Decisões de Design
+
+- **Sem registro público de usuário**: usuários são criados via `prisma/seed.ts`. O fluxo E2E da especificação original permite "seed ou primeiro login"; não há `POST /auth/register` na lista de endpoints exigidos.
+- **Hash de senha: bcrypt** (10 salt rounds) — padrão do ecossistema NestJS, sem dependências nativas problemáticas.
+- **JWT expira em 1 dia** — ambiente de avaliação, sem endpoint de refresh especificado.
+- **Workspaces com CRUD completo** (`PATCH`/`DELETE` além de `GET`/`POST`) — o checklist da especificação original pede "Workspaces CRUD funcionando"; a observação do modelo Workspace já autoriza ADMIN a criar/deletar.
+- **`GET /bookings/:id`** foi adicionado para cobrir o cenário de teste obrigatório "`GET /bookings/999 → 404`", que não tinha endpoint correspondente na lista original.
+- **Swagger** (`/api`) foi adicionado como ferramenta de teste manual, apesar de listado como bônus na especificação — não altera nenhum comportamento da API.
+- **`x-api-key` global**: camada extra de acesso, exigida em toda requisição (inclusive `POST /auth/login`), verificada por um guard global antes de qualquer outra lógica. Não substitui o JWT — é uma camada adicional, não uma alternativa a ele.
+- **Módulo `Users` (gestão de usuários) — ADMIN only**: adicionado por pedido posterior à entrega inicial, fora do escopo da especificação original. Permite a um ADMIN já autenticado criar, listar, buscar, deletar usuários e resetar senha (`POST/GET/DELETE /users`, `GET /users/:id`, `PATCH /users/:id/password`), todos protegidos por JWT + `RolesGuard`. Isso **não reabre** a decisão de "sem registro público de usuário" citada acima: lá o ponto era não expor um endpoint público de auto-cadastro; aqui só quem já provou ser ADMIN pode criar contas ou resetar senha, então a preocupação de segurança que motivou aquela decisão simplesmente não se aplica. Como em qualquer resposta deste módulo, a senha nunca é retornada — o Prisma `select` a omite explicitamente em todas as queries.
+
+## Regra de negócio: sobreposição de reservas
+
+Duas reservas ativas (`canceledAt = null`) no mesmo workspace não podem se sobrepor:
+
+```
+nova.startAt < existente.endAt AND nova.endAt > existente.startAt
+```
+
+Cancelar uma reserva é um soft-delete (`canceledAt` recebe a data atual) — o histórico nunca é apagado, e o horário fica livre para novas reservas.
+
+## Rodando os cenários de teste manualmente
+
+Todos os 6 cenários obrigatórios foram testados manualmente (via Swagger em `/api` ou `curl`) e confirmados durante o desenvolvimento: login (válido/inválido), autorização por papel (403/201), validação de entrada (400), recursos inexistentes (404), sobreposição de reservas sob concorrência (409) e o fluxo E2E completo (login → listar → criar workspace → reservar → conflito → cancelar). Lembre-se de incluir o header `x-api-key` em toda chamada.
+
+## Scripts
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run start:dev   # desenvolvimento, com watch
+npm run build        # build de produção
+npm run start:prod   # roda o build (dist/main)
+npx prisma db seed   # recria/atualiza os usuários de teste (idempotente)
 ```
-
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-This project is already instrumented. Create a free account at [observe.nestjs.com](https://observe.nestjs.com), add an application, and paste the generated app key and secret into the `ObserveModule.forRoot()` call in `src/app.module.ts`.
-
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
