@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { Prisma } from '../generated/prisma/client';
 
 @Injectable()
 export class BookingsService {
@@ -27,21 +28,38 @@ export class BookingsService {
       throw new NotFoundException('Workspace não encontrado');
     }
 
-    const overlapping = await this.prisma.booking.findFirst({
-      where: {
-        workspaceId: dto.workspaceId,
-        canceledAt: null,
-        startAt: { lt: endAt },
-        endAt: { gt: startAt },
-      },
-    });
-    if (overlapping) {
-      throw new ConflictException('Já existe uma reserva ativa nesse período');
-    }
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const overlapping = await tx.booking.findFirst({
+            where: {
+              workspaceId: dto.workspaceId,
+              canceledAt: null,
+              startAt: { lt: endAt },
+              endAt: { gt: startAt },
+            },
+          });
+          if (overlapping) {
+            throw new ConflictException(
+              'Já existe uma reserva ativa nesse período',
+            );
+          }
 
-    return this.prisma.booking.create({
-      data: { userId, workspaceId: dto.workspaceId, startAt, endAt },
-    });
+          return tx.booking.create({
+            data: { userId, workspaceId: dto.workspaceId, startAt, endAt },
+          });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      );
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2034'
+      ) {
+        throw new ConflictException('Já existe uma reserva ativa nesse período');
+      }
+      throw error;
+    }
   }
 
   findMine(userId: number) {
