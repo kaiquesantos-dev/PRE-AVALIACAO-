@@ -10,13 +10,15 @@ NestJS 10 · Prisma 7.10.0 (`@prisma/adapter-pg`) · PostgreSQL · JWT (`@nestjs
 
 ```bash
 npm install
-cp .env.example .env   # ajuste DATABASE_URL e JWT_SECRET se necessário
+cp .env.example .env   # ajuste DATABASE_URL, JWT_SECRET e API_KEY se necessário
 npx prisma migrate dev
 npx prisma db seed
 npm run start:dev
 ```
 
 Documentação interativa (Swagger): `http://localhost:3000/api`
+
+**Toda requisição exige o header `x-api-key`** (valor definido em `API_KEY` no `.env`), além do login/JWT nas rotas que já pedem autenticação. No Swagger, clique em **Authorize** e preencha os dois campos: `apiKey` (a chave) e `bearer` (o token retornado por `POST /auth/login`, sem o prefixo "Bearer").
 
 ## Usuários de teste (via seed)
 
@@ -47,6 +49,7 @@ Documentação interativa (Swagger): `http://localhost:3000/api`
 - **Workspaces com CRUD completo** (`PATCH`/`DELETE` além de `GET`/`POST`) — o checklist da especificação original pede "Workspaces CRUD funcionando"; a observação do modelo Workspace já autoriza ADMIN a criar/deletar.
 - **`GET /bookings/:id`** foi adicionado para cobrir o cenário de teste obrigatório "`GET /bookings/999 → 404`", que não tinha endpoint correspondente na lista original.
 - **Swagger** (`/api`) foi adicionado como ferramenta de teste manual, apesar de listado como bônus na especificação — não altera nenhum comportamento da API.
+- **`x-api-key` global**: camada extra de acesso, exigida em toda requisição (inclusive `POST /auth/login`), verificada por um guard global antes de qualquer outra lógica. Não substitui o JWT — é uma camada adicional, não uma alternativa a ele.
 
 ## Regra de negócio: sobreposição de reservas
 
@@ -60,7 +63,7 @@ Cancelar uma reserva é um soft-delete (`canceledAt` recebe a data atual) — o 
 
 ## Rodando os cenários de teste manualmente
 
-Veja `docs/superpowers/plans/2026-09-17-coworking-api-implementation.md` (Tasks 3–5) para os comandos `curl` completos de cada cenário obrigatório: login, autorização por papel, validação (400), recursos inexistentes (404), sobreposição (409) e o fluxo E2E completo de 10 passos. Todos os cenários foram executados manualmente e confirmados durante o desenvolvimento.
+Todos os 6 cenários obrigatórios foram testados manualmente (via Swagger em `/api` ou `curl`) e confirmados durante o desenvolvimento: login (válido/inválido), autorização por papel (403/201), validação de entrada (400), recursos inexistentes (404), sobreposição de reservas sob concorrência (409) e o fluxo E2E completo (login → listar → criar workspace → reservar → conflito → cancelar). Lembre-se de incluir o header `x-api-key` em toda chamada.
 
 ## Scripts
 

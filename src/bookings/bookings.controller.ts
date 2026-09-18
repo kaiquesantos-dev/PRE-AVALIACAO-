@@ -13,6 +13,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -22,6 +23,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 
 @ApiTags('Bookings')
 @ApiBearerAuth()
+@ApiSecurity('apiKey')
 @UseGuards(JwtAuthGuard)
 @Controller('bookings')
 export class BookingsController {
@@ -44,7 +46,8 @@ export class BookingsController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Token de autenticação ausente, inválido ou expirado.',
+    description:
+      'Token JWT ausente/inválido/expirado, ou header x-api-key ausente/inválido.',
   })
   @ApiResponse({
     status: 404,
@@ -74,7 +77,8 @@ export class BookingsController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Token de autenticação ausente, inválido ou expirado.',
+    description:
+      'Token JWT ausente/inválido/expirado, ou header x-api-key ausente/inválido.',
   })
   findMine(@CurrentUser() user: AuthenticatedUser) {
     return this.bookingsService.findMine(user.userId);
@@ -92,7 +96,8 @@ export class BookingsController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Token de autenticação ausente, inválido ou expirado.',
+    description:
+      'Token JWT ausente/inválido/expirado, ou header x-api-key ausente/inválido.',
   })
   @ApiResponse({
     status: 403,
@@ -122,7 +127,8 @@ export class BookingsController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Token de autenticação ausente, inválido ou expirado.',
+    description:
+      'Token JWT ausente/inválido/expirado, ou header x-api-key ausente/inválido.',
   })
   @ApiResponse({
     status: 403,

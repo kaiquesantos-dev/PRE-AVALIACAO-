@@ -14,6 +14,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -24,6 +25,7 @@ import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 
 @ApiTags('Workspaces')
+@ApiSecurity('apiKey')
 @Controller('workspaces')
 export class WorkspacesController {
   constructor(private readonly workspacesService: WorkspacesService) {}
@@ -31,11 +33,15 @@ export class WorkspacesController {
   @Get()
   @ApiOperation({
     summary: 'Listar todos os workspaces',
-    description: 'Rota pública — não exige autenticação.',
+    description: 'Não exige login (JWT), mas ainda exige o header x-api-key.',
   })
   @ApiResponse({
     status: 200,
     description: 'Lista de workspaces retornada com sucesso.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Header x-api-key ausente ou inválido.',
   })
   findAll() {
     return this.workspacesService.findAll();
@@ -60,7 +66,8 @@ export class WorkspacesController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Token de autenticação ausente, inválido ou expirado.',
+    description:
+      'Token JWT ausente/inválido/expirado, ou header x-api-key ausente/inválido.',
   })
   @ApiResponse({
     status: 403,
@@ -89,7 +96,8 @@ export class WorkspacesController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Token de autenticação ausente, inválido ou expirado.',
+    description:
+      'Token JWT ausente/inválido/expirado, ou header x-api-key ausente/inválido.',
   })
   @ApiResponse({
     status: 403,
@@ -121,7 +129,8 @@ export class WorkspacesController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Token de autenticação ausente, inválido ou expirado.',
+    description:
+      'Token JWT ausente/inválido/expirado, ou header x-api-key ausente/inválido.',
   })
   @ApiResponse({
     status: 403,
