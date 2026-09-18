@@ -40,6 +40,11 @@ Documentação interativa (Swagger): `http://localhost:3000/api`
 | GET | /bookings/my | USER |
 | GET | /bookings/:id | USER (dono) |
 | PATCH | /bookings/:id/cancel | USER (dono) |
+| POST | /users | ADMIN |
+| GET | /users | ADMIN |
+| GET | /users/:id | ADMIN |
+| DELETE | /users/:id | ADMIN |
+| PATCH | /users/:id/password | ADMIN |
 
 ## Decisões de Design
 
@@ -50,6 +55,7 @@ Documentação interativa (Swagger): `http://localhost:3000/api`
 - **`GET /bookings/:id`** foi adicionado para cobrir o cenário de teste obrigatório "`GET /bookings/999 → 404`", que não tinha endpoint correspondente na lista original.
 - **Swagger** (`/api`) foi adicionado como ferramenta de teste manual, apesar de listado como bônus na especificação — não altera nenhum comportamento da API.
 - **`x-api-key` global**: camada extra de acesso, exigida em toda requisição (inclusive `POST /auth/login`), verificada por um guard global antes de qualquer outra lógica. Não substitui o JWT — é uma camada adicional, não uma alternativa a ele.
+- **Módulo `Users` (gestão de usuários) — ADMIN only**: adicionado por pedido posterior à entrega inicial, fora do escopo da especificação original. Permite a um ADMIN já autenticado criar, listar, buscar, deletar usuários e resetar senha (`POST/GET/DELETE /users`, `GET /users/:id`, `PATCH /users/:id/password`), todos protegidos por JWT + `RolesGuard`. Isso **não reabre** a decisão de "sem registro público de usuário" citada acima: lá o ponto era não expor um endpoint público de auto-cadastro; aqui só quem já provou ser ADMIN pode criar contas ou resetar senha, então a preocupação de segurança que motivou aquela decisão simplesmente não se aplica. Como em qualquer resposta deste módulo, a senha nunca é retornada — o Prisma `select` a omite explicitamente em todas as queries.
 
 ## Regra de negócio: sobreposição de reservas
 
